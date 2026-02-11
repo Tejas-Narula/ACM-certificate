@@ -22,7 +22,8 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
-  Award
+  Award,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -30,7 +31,11 @@ import {
   getAllCertificates,
   deleteCertificate as deleteCertificateApi,
   bulkCreateCertificates,
-  Certificate
+  getWorkshops,
+  getEventTemplates,
+  Certificate,
+  Workshop,
+  TemplateRecord
 } from '../../services/api';
 
 type TabType = 'upload' | 'manage';
@@ -260,6 +265,76 @@ const AdminDashboard: React.FC = () => {
       setErrorMessage('Bulk upload failed. Check CSV format and try again.');
     } finally {
       setBulkIsLoading(false);
+    }
+  };
+
+  // ---- Download certificate image ----
+  const handleDownloadCertificate = async (cert: Certificate) => {
+    try {
+      // 1. Find event / workshop ID by matching workshopName
+      const workshops: Workshop[] = await getWorkshops();
+      const ws = workshops.find((w) => w.title === cert.workshopName);
+      if (!ws) {
+        alert('No event found for this certificate. Upload a template first.');
+        return;
+      }
+
+      // 2. Fetch saved templates for the event
+      const templates: TemplateRecord[] = await getEventTemplates(ws.id);
+      if (templates.length === 0) {
+        alert('No template saved for this event. Set up a template with placeholders first.');
+        return;
+      }
+
+      const tpl = templates[0]; // use the first (most recent) template
+
+      // 3. Load the template image onto a canvas
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = tpl.image_url;
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load template image'));
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+
+      // 4. Draw name placeholder
+      const nameX = (tpl.name_x / 100) * canvas.width;
+      const nameY = (tpl.name_y / 100) * canvas.height;
+      // fontSize is stored as px for the ~500px-tall editor preview; scale to actual image
+      const scaleFactor = canvas.height / 500;
+      const nameFontSize = Math.round(tpl.name_font_size * scaleFactor);
+      ctx.font = `bold ${nameFontSize}px Arial, sans-serif`;
+      ctx.fillStyle = '#1a1a2e';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cert.recipientName, nameX, nameY);
+
+      // 5. Draw code placeholder
+      const codeX = (tpl.code_x / 100) * canvas.width;
+      const codeY = (tpl.code_y / 100) * canvas.height;
+      const codeFontSize = Math.round(tpl.code_font_size * scaleFactor);
+      ctx.font = `${codeFontSize}px monospace`;
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(cert.code, codeX, codeY);
+
+      // 6. Download
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `certificate-${cert.code}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to generate certificate image:', err);
+      alert('Failed to generate certificate. Make sure a template with positions is saved for this event.');
     }
   };
 
@@ -836,13 +911,22 @@ const AdminDashboard: React.FC = () => {
                                           </span>
                                         ))}
                                       </div>
-                                      <button
-                                        onClick={() => handleDelete(cert.id, cert.code)}
-                                        className="w-full mt-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs font-bold"
-                                      >
-                                        <Trash2 size={12} />
-                                        Delete
-                                      </button>
+                                      <div className="flex gap-2 mt-2">
+                                        <button
+                                          onClick={() => handleDownloadCertificate(cert)}
+                                          className="flex-1 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs font-bold"
+                                        >
+                                          <Download size={12} />
+                                          Download
+                                        </button>
+                                        <button
+                                          onClick={() => handleDelete(cert.id, cert.code)}
+                                          className="flex-1 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs font-bold"
+                                        >
+                                          <Trash2 size={12} />
+                                          Delete
+                                        </button>
+                                      </div>
                                     </div>
                                   ))}
                                 </div>

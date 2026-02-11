@@ -133,3 +133,36 @@ class ErrorResponse(BaseModel):
     success: bool = False
     error: str
     detail: Optional[str] = None
+
+
+# Certificate Template Schemas
+class PlaceholderPosition(BaseModel):
+    x: float = 50
+    y: float = 45
+    fontSize: float = 24
+
+
+class TemplateCreate(BaseModel):
+    image_url: str
+    name_placeholder: PlaceholderPosition = PlaceholderPosition()
+    code_placeholder: PlaceholderPosition = PlaceholderPosition(x=50, y=70, fontSize=16)
+
+
+class TemplateUpdate(BaseModel):
+    name_placeholder: Optional[PlaceholderPosition] = None
+    code_placeholder: Optional[PlaceholderPosition] = None
+
+
+class TemplateResponse(BaseModel):
+    id: str
+    event_id: str
+    image_url: str
+    name_x: float
+    name_y: float
+    name_font_size: float
+    code_x: float
+    code_y: float
+    code_font_size: float
+
+    class Config:
+        from_attributes = True

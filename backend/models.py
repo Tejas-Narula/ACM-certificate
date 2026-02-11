@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, Boolean, Table, JSON
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, Boolean, Table, JSON, Float
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -33,6 +33,7 @@ class Workshop(Base):
         secondary=workshop_certificate,
         back_populates="workshops"
     )
+    templates = relationship("CertificateTemplate", back_populates="workshop", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Workshop(id={self.id}, title={self.title})>"
@@ -82,3 +83,31 @@ class Admin(Base):
 
     def __repr__(self):
         return f"<Admin(id={self.id}, email={self.email})>"
+
+
+class CertificateTemplate(Base):
+    __tablename__ = "certificate_templates"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_id = Column(String, ForeignKey("workshops.id"), nullable=False, index=True)
+    image_url = Column(String, nullable=False)
+
+    # Name placeholder position (percentage 0-100 and font size in px)
+    name_x = Column(Float, nullable=False, default=50)
+    name_y = Column(Float, nullable=False, default=45)
+    name_font_size = Column(Float, nullable=False, default=24)
+
+    # Code placeholder position
+    code_x = Column(Float, nullable=False, default=50)
+    code_y = Column(Float, nullable=False, default=70)
+    code_font_size = Column(Float, nullable=False, default=16)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    workshop = relationship("Workshop", back_populates="templates")
+
+    def __repr__(self):
+        return f"<CertificateTemplate(id={self.id}, event={self.event_id})>"
+

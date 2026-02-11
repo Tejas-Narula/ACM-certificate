@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, X, Image as ImageIcon, RotateCcw, Move, Type, Plus, Loader, Check } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, RotateCcw, Move, Type, Plus, Loader, Check, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getEventImages, uploadEventImage } from '../../services/api';
+import { getEventImages, uploadEventImage, getEventTemplates, saveEventTemplate, TemplateRecord } from '../../services/api';
 
 interface PlaceholderPosition {
   x: number; // percentage 0-100
@@ -43,6 +43,9 @@ const CertificateTemplateEditor: React.FC<CertificateTemplateEditorProps> = ({
   const [isLoadingGallery, setIsLoadingGallery] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [templateRecords, setTemplateRecords] = useState<TemplateRecord[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -58,8 +61,12 @@ const CertificateTemplateEditor: React.FC<CertificateTemplateEditorProps> = ({
     const loadImages = async () => {
       setIsLoadingGallery(true);
       try {
-        const images = await getEventImages(eventId);
+        const [images, templates] = await Promise.all([
+          getEventImages(eventId),
+          getEventTemplates(eventId),
+        ]);
         setGalleryImages(images);
+        setTemplateRecords(templates);
       } catch (error) {
         console.error('Failed to load event images:', error);
       } finally {
@@ -91,12 +98,47 @@ const CertificateTemplateEditor: React.FC<CertificateTemplateEditorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview, namePlaceholder, codePlaceholder]);
 
+  // Auto-save positions to DB (debounced 1.5s after last change)
+  useEffect(() => {
+    if (!preview || !selectedImageUrl || !eventId || !token) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        const saved = await saveEventTemplate(token, eventId, {
+          image_url: selectedImageUrl,
+          name_placeholder: namePlaceholder,
+          code_placeholder: codePlaceholder,
+        });
+        // Update local cache
+        setTemplateRecords((prev) => {
+          const idx = prev.findIndex((t) => t.image_url === selectedImageUrl);
+          if (idx >= 0) { const copy = [...prev]; copy[idx] = saved; return copy; }
+          return [...prev, saved];
+        });
+      } catch (err) {
+        console.error('Failed to auto-save template:', err);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 1500);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [namePlaceholder, codePlaceholder, selectedImageUrl, eventId, token]);
+
   // ---- Gallery: select existing image ----
   const selectGalleryImage = (url: string) => {
     setSelectedImageUrl(url);
     setPreview(url);
-    setNamePlaceholder({ ...DEFAULT_NAME_POS });
-    setCodePlaceholder({ ...DEFAULT_CODE_POS });
+    // Restore saved positions if they exist for this image
+    const saved = templateRecords.find((t) => t.image_url === url);
+    if (saved) {
+      setNamePlaceholder({ x: saved.name_x, y: saved.name_y, fontSize: saved.name_font_size });
+      setCodePlaceholder({ x: saved.code_x, y: saved.code_y, fontSize: saved.code_font_size });
+    } else {
+      setNamePlaceholder({ ...DEFAULT_NAME_POS });
+      setCodePlaceholder({ ...DEFAULT_CODE_POS });
+    }
   };
 
   // ---- Gallery: upload new image to Supabase Storage ----
@@ -348,8 +390,8 @@ const CertificateTemplateEditor: React.FC<CertificateTemplateEditorProps> = ({
                     type="button"
                     onClick={() => selectGalleryImage(url)}
                     className={`relative w-20 h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 group ${selectedImageUrl === url
-                        ? 'border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10'
-                        : 'border-slate-700 hover:border-slate-500'
+                      ? 'border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10'
+                      : 'border-slate-700 hover:border-slate-500'
                       }`}
                   >
                     <img
@@ -368,8 +410,8 @@ const CertificateTemplateEditor: React.FC<CertificateTemplateEditorProps> = ({
                 {/* Upload "+" button */}
                 <label
                   className={`w-20 h-14 rounded-lg border-2 border-dashed flex items-center justify-center cursor-pointer transition-all flex-shrink-0 ${isUploading
-                      ? 'border-slate-600 bg-slate-800/50'
-                      : 'border-slate-600 hover:border-primary hover:bg-slate-800/50'
+                    ? 'border-slate-600 bg-slate-800/50'
+                    : 'border-slate-600 hover:border-primary hover:bg-slate-800/50'
                     }`}
                 >
                   {isUploading ? (

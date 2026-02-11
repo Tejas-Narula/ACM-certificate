@@ -402,3 +402,50 @@ export async function deleteEventImage(token: string, eventId: string, filename:
 
   return response.json();
 }
+
+// ============ Template position endpoints ============
+
+export interface TemplateRecord {
+  id: string;
+  event_id: string;
+  image_url: string;
+  name_x: number;
+  name_y: number;
+  name_font_size: number;
+  code_x: number;
+  code_y: number;
+  code_font_size: number;
+}
+
+export async function getEventTemplates(eventId: string): Promise<TemplateRecord[]> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/templates`);
+  if (!response.ok) {
+    throw new Error('Failed to get event templates');
+  }
+  return response.json();
+}
+
+export async function saveEventTemplate(
+  token: string,
+  eventId: string,
+  data: {
+    image_url: string;
+    name_placeholder: { x: number; y: number; fontSize: number };
+    code_placeholder: { x: number; y: number; fontSize: number };
+  },
+): Promise<TemplateRecord> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/templates`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save template');
+  }
+
+  return response.json();
+}

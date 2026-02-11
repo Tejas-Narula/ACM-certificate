@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from config import settings
 from database import init_db
-from routers import auth, certificates, workshops, images
+from routers import auth, certificates, workshops, images, templates
 
 # Initialize database on startup
 @asynccontextmanager
@@ -39,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(certificates.router)
 app.include_router(workshops.router)
 app.include_router(images.router)
+app.include_router(templates.router)
 
 
 # Health check endpoint
