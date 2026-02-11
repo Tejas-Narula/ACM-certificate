@@ -355,3 +355,50 @@ export async function deleteWorkshop(token: string, workshopId: string): Promise
 
   return response.json();
 }
+
+// ============ Event Images ============
+
+export async function uploadEventImage(token: string, eventId: string, file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/images`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload image');
+  }
+
+  return response.json();
+}
+
+export async function getEventImages(eventId: string): Promise<string[]> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/images`);
+
+  if (!response.ok) {
+    throw new Error('Failed to get event images');
+  }
+
+  const data = await response.json();
+  return data.images || [];
+}
+
+export async function deleteEventImage(token: string, eventId: string, filename: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/images/${filename}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete image');
+  }
+
+  return response.json();
+}

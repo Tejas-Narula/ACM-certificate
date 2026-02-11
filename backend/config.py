@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
     
+    # Supabase Storage
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    
     # App
     ENV: str = "development"
     APP_NAME: str = "ACM Certificate System"
