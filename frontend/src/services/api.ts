@@ -355,3 +355,97 @@ export async function deleteWorkshop(token: string, workshopId: string): Promise
 
   return response.json();
 }
+
+// ============ Event Images ============
+
+export async function uploadEventImage(token: string, eventId: string, file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/images`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload image');
+  }
+
+  return response.json();
+}
+
+export async function getEventImages(eventId: string): Promise<string[]> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/images`);
+
+  if (!response.ok) {
+    throw new Error('Failed to get event images');
+  }
+
+  const data = await response.json();
+  return data.images || [];
+}
+
+export async function deleteEventImage(token: string, eventId: string, filename: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/images/${filename}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete image');
+  }
+
+  return response.json();
+}
+
+// ============ Template position endpoints ============
+
+export interface TemplateRecord {
+  id: string;
+  event_id: string;
+  image_url: string;
+  name_x: number;
+  name_y: number;
+  name_font_size: number;
+  code_x: number;
+  code_y: number;
+  code_font_size: number;
+}
+
+export async function getEventTemplates(eventId: string): Promise<TemplateRecord[]> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/templates`);
+  if (!response.ok) {
+    throw new Error('Failed to get event templates');
+  }
+  return response.json();
+}
+
+export async function saveEventTemplate(
+  token: string,
+  eventId: string,
+  data: {
+    image_url: string;
+    name_placeholder: { x: number; y: number; fontSize: number };
+    code_placeholder: { x: number; y: number; fontSize: number };
+  },
+): Promise<TemplateRecord> {
+  const response = await fetch(`${API_BASE_URL}/api/events/${eventId}/templates`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to save template');
+  }
+
+  return response.json();
+}
